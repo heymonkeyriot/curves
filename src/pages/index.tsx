@@ -20,7 +20,8 @@ const App: React.FC = () => {
   const [questions, setQuestions] = useState<string[]>([]);
   const [maxCount, setMaxCount] = useState(0);
   const [totalResponses, setTotalResponses] = useState(0);
-  const [selectedRange, setSelectedRange] = useState({ min: 0, max: totalResponses });
+  const [totalResponsesFullDataSet, setTotalResponsesFullDataSet] = useState(0);
+  const [selectedRange, setSelectedRange] = useState({ min: 0, max: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [fetchedData, setFetchedData] = useState<any>(null);
@@ -35,16 +36,16 @@ const App: React.FC = () => {
     const result = await response.json();
     setFetchedData(result);
     setIsLoading(false);
-  }  
+  }
 
   function changeData(min = 0, max?: number) {
     if (fetchedData === null) {
       console.error("Fetching data failed.");
       return;
     }
-  
+
     const { questionData, questionResponses, questions } = processSheetData(fetchedData, min, max);
-  
+
     const totalResponses = questionResponses.length > 0
       ? (questionResponses[1]["Strongly disagree"]
         + questionResponses[1]["Disagree"]
@@ -52,25 +53,29 @@ const App: React.FC = () => {
         + questionResponses[1]["Agree"]
         + questionResponses[1]["Strongly agree"])
       : 0;
-  
+
+    if (min === 0 && max === undefined) {
+      setTotalResponsesFullDataSet(totalResponses);
+    }
+
     if (max === undefined) {
       max = totalResponses;
     }
-  
+
     const maxCount = questionResponses.reduce((max, response) => {
       return Math.max(max, ...Object.values(response));
     }, 0);
-  
+
     const data = questionData.map((qData, index) => ({
       questionData: qData,
       responseCounts: questionResponses[index],
     }));
-  
+
     setData(data);
     setQuestions(questions);
     setMaxCount(maxCount);
     setTotalResponses(totalResponses);
-    setSelectedRange({ min: 0, max: totalResponses });
+    setSelectedRange({ min: min, max: max });
   }
 
   useEffect(() => {
@@ -79,14 +84,18 @@ const App: React.FC = () => {
     }
   }, [fetchedData]);
 
+  useEffect(() => {
+    setSelectedRange((prevRange) => ({ ...prevRange, max: prevRange.max }));
+  }, [totalResponses]);
+
   const handleApplyClick = () => {
     changeData(selectedRange.min, selectedRange.max)
   };
 
   // Margin of error
-const populationSize = 120;
-const confidenceLevel = "95%";
-const marginOfError = calculateMarginOfError(totalResponses, populationSize, confidenceLevel);
+  const populationSize = 120;
+  const confidenceLevel = "95%";
+  const marginOfError = calculateMarginOfError(totalResponses, populationSize, confidenceLevel);
 
   return (
     <div className="max-w-2xl mx-auto grid grid-cols-1 justify-left gap-4 p-4">
@@ -98,7 +107,7 @@ const marginOfError = calculateMarginOfError(totalResponses, populationSize, con
       ) : (
         <>
           <h1 className='text-3xl'>LLMs at Torchbox</h1>
-          <h4 className='text-lg'>Number of responses: {totalResponses} - Margin of error {marginOfError}</h4>
+          <h4 className='text-lg'>Total responses: {totalResponsesFullDataSet}</h4>
           <button
             className="mb-4 text-left text-blue-600 hover:text-blue-800 focus:outline-none"
             onClick={() => setIsAccordionOpen(!isAccordionOpen)}
@@ -107,6 +116,7 @@ const marginOfError = calculateMarginOfError(totalResponses, populationSize, con
           </button>
           {isAccordionOpen && (
             <div className="mb-4">
+              <h4 className='text-lg'>Segmented responses: {totalResponses} - Margin of error {marginOfError}</h4>
               <label>
                 From
                 <input
