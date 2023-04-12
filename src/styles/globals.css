@@ -2,3 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 @import './animations.css';
+
+.thisIsToDelete {
+  font-weight: 100;
+}
